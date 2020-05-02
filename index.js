@@ -5,7 +5,7 @@ var config = {
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 300 }
+            gravity: { y: 0 }
         }
     },
     scene: {
@@ -38,38 +38,25 @@ var scoreText = '';
 var bombs = null;
 var gameOver = null;
 
+var pipeGroup = null;
+
 function create ()
 {
     this.add.image(400, 300, 'sky');
     scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
 
-    platforms = null;
-
-    //Platforms
+    //Platform
     platforms = this.physics.add.staticGroup();
     platforms.create(400, 568, 'ground').setScale(2).refreshBody();
-    platforms.create(600, 400, 'ground');
-    platforms.create(50, 250, 'ground');
-    platforms.create(750, 220, 'ground');
+
+    pipeGroup = this.physics.add.group();
 
 
     //Player
-    player = this.physics.add.sprite(100, 450, 'dude');
-    player.setBounce(0.2);
+    player = this.physics.add.sprite(150, 0, 'dude');
     player.setCollideWorldBounds(true);
 
-    this.anims.create({
-        key: 'left',
-        frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
-        frameRate: 10,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'turn',
-        frames: [ { key: 'dude', frame: 4 } ],
-        frameRate: 20
-    });
+    player.body.gravity.y = 1000;
 
     this.anims.create({
         key: 'right',
@@ -78,93 +65,45 @@ function create ()
         repeat: -1
     });
 
-    this.physics.add.collider(player, platforms);
 
     //Cursor
     cursors = this.input.keyboard.createCursorKeys();
 
-    //Stars
-    stars = this.physics.add.group({
-        key: 'star',
-        repeat: 11,
-        setXY: { x: 12, y: 0, stepX: 70 }
-    });
+    this.physics.add.collider(player, platforms, hitObstacle, null, this);
     
-    stars.children.iterate(function (child) {
-    
-        child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
-    
-    });
-
-    this.physics.add.collider(stars, platforms);
-    this.physics.add.overlap(player, stars, collectStar, null, this);
-
-    //Bombs
-    bombs = this.physics.add.group();
-    this.physics.add.collider(bombs, platforms);
-    this.physics.add.collider(player, bombs, hitBomb, null, this);
-
+    this.physics.add.collider(player, pipeGroup, hitObstacle, null, this);
 }
 
 
 function update() {
-    if (cursors.left.isDown)
-    {
-        player.setVelocityX(-200);
-
-        player.anims.play('left', true);
-    }
-    else if (cursors.right.isDown)
-    {
-        player.setVelocityX(200);
+    if(!gameOver) {
 
         player.anims.play('right', true);
-    }
-    else
-    {
-        player.setVelocityX(0);
 
-        player.anims.play('turn');
+        if (cursors.up.isDown) {
+            player.setVelocityY(-330);
+        }
+
+        if (getRandomInt(1, 20) === 1) {
+            //Create returns an object that can be used to track position on every update.
+            pipeGroup.create(game.config.width, getRandomInt(30, game.config.height), 'star');
+            pipeGroup.setVelocityX(-400);
+        }
     }
 
-    if (cursors.up.isDown && player.body.touching.down)
-    {
-        player.setVelocityY(-330);
-    }
 }
 
 
-function collectStar (player, star)
-{
-    star.disableBody(true, true);
-    score += 10;
-    scoreText.setText('Score: ' + score);
-
-    if (stars.countActive(true) === 0)
-    {
-        stars.children.iterate(function (child) {
-
-            child.enableBody(true, child.x, 0, true, true);
-
-        });
-
-        var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
-
-        var bomb = bombs.create(x, 16, 'bomb');
-        bomb.setBounce(1);
-        bomb.setCollideWorldBounds(true);
-        bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
-
-    }
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
 }
 
-function hitBomb (player, bomb)
+function hitObstacle (player, bomb)
 {
     this.physics.pause();
-
     player.setTint(0xff0000);
-
     player.anims.play('turn');
-
     gameOver = true;
 }
